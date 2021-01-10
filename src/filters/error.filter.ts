@@ -32,8 +32,23 @@ export class HttpExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: WinstonLogger) {}
 
   catch(exception: HttpException, host: ArgumentsHost) {
-    this.logger.error(exception);
     const request = host.switchToHttp().getRequest<Request>();
+    // 来源 IP
+    let ip = (
+      request.headers['x-forwarded-for'] ||
+      request.headers['x-real-ip'] ||
+      request.connection.remoteAddress ||
+      request.socket.remoteAddress ||
+      request.ip ||
+      request.ips[0]
+    );
+    if (typeof ip === 'object') {
+      ip = ip[0].replace('::ffff:', '');
+    }else {
+      ip = ip.replace('::ffff:', '')
+    }
+    (exception as any).ip = ip
+    this.logger.error(exception);
     const response = host.switchToHttp().getResponse<Response>();
     try {
       const status = exception.getStatus() || HttpStatus.INTERNAL_SERVER_ERROR;
